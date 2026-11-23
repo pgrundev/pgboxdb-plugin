@@ -2,6 +2,20 @@
 
 One plugin. Every Claude Code agent gets its own Postgres.
 
+> **Coming from PGX?** PGX is now PGBoxDB. The plugin `pgx@pgx-plugin` is
+> replaced by this one; reinstall it:
+>
+> ```text
+> /plugin uninstall pgx@pgx-plugin
+> /plugin marketplace remove pgx-plugin
+> /plugin marketplace add pgrundev/pgboxdb-plugin
+> /plugin install pgboxdb@pgboxdb-plugin
+> ```
+>
+> Then install the runtime (`curl -fsSL https://pgboxdb.com/install | sh`) and
+> run `pgboxdb migrate` to keep your existing databases. Guide:
+> [upgrading](https://github.com/pgrundev/pgboxdb/blob/main/docs/pgboxdb/local-dev/upgrading.md).
+
 PGBoxDB is a local, PostgreSQL-compatible runtime built for disposable databases:
 copy-on-write branches created in milliseconds and removed automatically when
 their time-to-live runs out. This plugin ships the `pgboxdb` Agent Skill, which
