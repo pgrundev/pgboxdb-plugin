@@ -15,15 +15,15 @@ it was started with.
 
 1. **Wrapper (automatic within the run):**
    ```sh
-   pgx agent exec -- codex                 # interactive
-   pgx agent exec -- codex exec "add a users table and run the tests"
+   pgboxdb agent exec -- codex                 # interactive
+   pgboxdb agent exec -- codex exec "add a users table and run the tests"
    ```
    The branch is in Codex's environment, so in every command it runs. It is
    dropped when Codex exits (`--keep` retires it with the grace period).
 2. **Inside a Codex session started any other way:** run database work as
-   `pgx agent exec -- <command>`. It attaches to the session
+   `pgboxdb agent exec -- <command>`. It attaches to the session
    (`CODEX_SESSION_ID`), creating the branch on first use and keeping it for
-   the whole session. The SessionStart hook (installed by `pgx agent setup`)
+   the whole session. The SessionStart hook (installed by `pgboxdb agent setup`)
    creates the branch up front and tells the model this in its context.
 
 Never rewrite commands or inject the URL through other hooks; that is not a

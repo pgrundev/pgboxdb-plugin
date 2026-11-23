@@ -9,9 +9,9 @@ repository's validation notes, treat Cursor as "hooks plus wrapper".
 
 ## How it works
 
-`pgx agent setup` adds to `.cursor/hooks.json` (`version: 1`):
+`pgboxdb agent setup` adds to `.cursor/hooks.json` (`version: 1`):
 `sessionStart` → `up`, answered with `{"env": {…nine variables…},
-"additional_context": "PGX: …"}`; `beforeSubmitPrompt` and
+"additional_context": "PGBoxDB: …"}`; `beforeSubmitPrompt` and
 `afterShellExecution` → `touch` (answered `{}`); `sessionEnd` → `down`
 (grace). The touch hooks are on non-permission events on purpose.
 
@@ -23,8 +23,8 @@ branch.
 ## Known limits (from Cursor's own notes)
 
 - `sessionStart` does not fire again when a stopped chat is reopened: the
-  environment is gone. If `PGX_ISOLATION` is unset in the agent's shell, use
-  `pgx agent exec -- <command>` for database work (each call is its own
+  environment is gone. If `PGBOXDB_ISOLATION` is unset in the agent's shell, use
+  `pgboxdb agent exec -- <command>` for database work (each call is its own
   short-lived branch unless `--id` names one) or ask the user to start a new
   chat.
 - Cursor subagents do not inherit the environment.
@@ -36,10 +36,10 @@ branch.
 ## The `agent` CLI
 
 `agent -p "…"` inherits the launching shell's environment and runs
-hooks, so `pgx agent exec -- agent -p "…"` is the guaranteed path: the
+hooks, so `pgboxdb agent exec -- agent -p "…"` is the guaranteed path: the
 wrapper's branch is in the CLI's environment for the whole run.
 
 ## Checking
 
-Ask the agent to run `echo $PGX_BRANCH $PGX_ISOLATION` and
-`pgx agent doctor`. A branch name and `ok` mean the hook worked.
+Ask the agent to run `echo $PGBOXDB_BRANCH $PGBOXDB_ISOLATION` and
+`pgboxdb agent doctor`. A branch name and `ok` mean the hook worked.

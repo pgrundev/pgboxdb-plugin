@@ -1,12 +1,12 @@
-# Importing from PostgreSQL: `pgx copy`
+# Importing from PostgreSQL: `pgboxdb copy`
 
 ```sh
-pgx copy --from "<url>" --to <name>_template --schema-only [--jobs N] [--verbose]
+pgboxdb copy --from "<url>" --to <name>_template --schema-only [--jobs N] [--verbose]
 ```
 
-`pgx copy` runs `pg_dump` against the source (read-only, no locks beyond a
-normal dump) and `pg_restore` into a fresh PGX database, checks the dump's
-table of contents for extensions and features PGX cannot restore before
+`pgboxdb copy` runs `pg_dump` against the source (read-only, no locks beyond a
+normal dump) and `pg_restore` into a fresh PGBoxDB database, checks the dump's
+table of contents for extensions and features PGBoxDB cannot restore before
 writing anything, restores into a staging name and renames atomically, then
 runs `VACUUM (FREEZE, ANALYZE)` so branches cloned from it share pages
 instead of rewriting them on first read. Output redacts the URL.
@@ -18,12 +18,12 @@ instead of rewriting them on first read. Output redacts the URL.
    never from the conversation. If it has to be typed, the user types it into
    their own shell, not into the chat.
 2. Passwords on a command line are visible in `ps` and shell history for the
-   duration of the command; `pgx copy` moves the password into `PGPASSWORD`
+   duration of the command; `pgboxdb copy` moves the password into `PGPASSWORD`
    for the tools it runs and never prints it. Prefer `PGPASSWORD`/`.pgpass`
    when the user has them.
 3. `local` sources: proceed schema-only without asking. `remote`: ask first.
    `sensitive`: ask, say it looks like production, never copy data.
-4. Data copies (`pgx copy` without `--schema-only`) need an explicit yes in
+4. Data copies (`pgboxdb copy` without `--schema-only`) need an explicit yes in
    this conversation, every time, and a sentence about what will be copied
    (database name, size if known). Real data in an agent branch is still real
    data on the developer's disk.
@@ -31,13 +31,13 @@ instead of rewriting them on first read. Output redacts the URL.
 ## Naming
 
 `<app>_template` (for example `myapp_template`). Never a name that exists:
-`pgx copy` refuses to overwrite and so should you. The template is for
+`pgboxdb copy` refuses to overwrite and so should you. The template is for
 branching only; nothing connects to it, so it stays idle, which `CREATE
 DATABASE … TEMPLATE` requires.
 
 ## Compatibility
 
-PGX restores plain PostgreSQL schemas: tables, constraints, indexes, views,
+PGBoxDB restores plain PostgreSQL schemas: tables, constraints, indexes, views,
 functions, triggers, sequences, enums, domains, partitions, row-level
 security, the bundled extensions (`pgcrypto`, `uuid-ossp`, `citext`,
 `hstore`, `pg_trgm`, `btree_gist`, `btree_gin`, `unaccent`, `ltree`,
@@ -52,14 +52,14 @@ keeping that project on its PostgreSQL. Never silently drop objects.
 
 Roles: everything restored is owned by `postgres`; grants to other roles are
 skipped with a note in `--verbose` output. Application roles are not
-recreated; `DATABASE_URL` for branches uses the PGX superuser.
+recreated; `DATABASE_URL` for branches uses the PGBoxDB superuser.
 
 ## After the import
 
 ```sh
-pgx ls                       # the template, permanent, with its size
-pgx agent setup --source <name>_template
+pgboxdb ls                       # the template, permanent, with its size
+pgboxdb agent setup --source <name>_template
 ```
 
 Refreshing later: import into a new name, test a branch of it, then change
-`source` in `.pgx.toml` (ask; the old template can be dropped by the user).
+`source` in `.pgboxdb.toml` (ask; the old template can be dropped by the user).

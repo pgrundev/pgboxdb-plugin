@@ -10,7 +10,7 @@ schemas. None of it reaches the template or any other branch.
 
 ## Agent branches versus hand-made branches
 
-| | `pgx branch <src> <name>` | `pgx agent …` branches |
+| | `pgboxdb branch <src> <name>` | `pgboxdb agent …` branches |
 |---|---|---|
 | Name | yours | `agent-<host>-<session8>` |
 | TTL | 2h from creation (`--ttl`) | 2h **idle**: every prompt/command resets it |
@@ -18,7 +18,7 @@ schemas. None of it reaches the template or any other branch.
 | Identity | the name | `(project, host, session id)`; the name is derived |
 | Who connects | you | that one session |
 
-`pgx ls` shows all databases; `pgx agent ls` only agent branches with host,
+`pgboxdb ls` shows all databases; `pgboxdb agent ls` only agent branches with host,
 session, state (`active`, `retired`, `expired`) and expiry.
 
 ## The environment a session gets
@@ -26,13 +26,13 @@ session, state (`active`, `retired`, `expired`) and expiry.
 ```
 DATABASE_URL=postgres://postgres:…@127.0.0.1:<port>/agent-claude-9b1f3c2d
 PGHOST=127.0.0.1  PGPORT=<port>  PGUSER=postgres  PGPASSWORD=…  PGDATABASE=agent-claude-9b1f3c2d
-PGX_BRANCH=agent-claude-9b1f3c2d  PGX_SOURCE=myapp_template  PGX_ISOLATION=ok
+PGBOXDB_BRANCH=agent-claude-9b1f3c2d  PGBOXDB_SOURCE=myapp_template  PGBOXDB_ISOLATION=ok
 ```
 
 Both the URL and the libpq variables are set, so frameworks that read either
-work. `PGX_ISOLATION` is `ok`, `failed` (sentinel in place, see
+work. `PGBOXDB_ISOLATION` is `ok`, `failed` (sentinel in place, see
 troubleshooting.md), or unset (no branch for this shell: use
-`pgx agent exec --`).
+`pgboxdb agent exec --`).
 
 ## Framework notes
 
@@ -44,17 +44,17 @@ troubleshooting.md), or unset (no branch for this shell: use
   after the tests have already passed. That abort is harmless (the parent run
   exits 0) and it keeps Rails from purging the branch; do not run
   `db:environment:set` to silence it. Parallel
-  tests create `agent-…-0`, `agent-…-1` databases in PGX; they are ordinary
+  tests create `agent-…-0`, `agent-…-1` databases in PGBoxDB; they are ordinary
   databases without a TTL, so run `PARALLEL_WORKERS=1` or drop them with
-  `pgx drop` afterwards, or accept them (they are small). `db:prepare`,
+  `pgboxdb drop` afterwards, or accept them (they are small). `db:prepare`,
   `db:schema:load`, `db:reset` act on the branch only.
 - **Django**: needs settings that read `DATABASE_URL` (dj-database-url,
   django-environ) or the `PG*` variables through psycopg; `manage.py test`
   creates `test_<branch>` as a sibling database, again without a TTL, and
   drops it itself.
 - **Prisma**: reads `env("DATABASE_URL")` from `schema.prisma`; shadow
-  databases for `migrate dev` are created in PGX and removed by Prisma.
-- **psycopg / asyncpg / SQLAlchemy / Go pgx / node-postgres**: all honour
+  databases for `migrate dev` are created in PGBoxDB and removed by Prisma.
+- **psycopg / asyncpg / SQLAlchemy / Go pgboxdb / node-postgres**: all honour
   `PG*` and most accept `DATABASE_URL` directly.
 - **Seeds and fixtures**: run them; a branch of a schema-only template is
   empty, which is usually what tests want. For a branch of a data template
@@ -65,6 +65,6 @@ troubleshooting.md), or unset (no branch for this shell: use
 
 Nothing to do in the normal case. The runtime's supervisor removes expired
 branches (idle TTL passed, or grace passed after the session ended) and
-terminates their sessions first. `pgx agent down --now` drops the current
-session's branch immediately; `pgx ttl <branch> 4h` extends by hand;
-`pgx ttl <branch> unlimited` keeps one forever (then it is the user's).
+terminates their sessions first. `pgboxdb agent down --now` drops the current
+session's branch immediately; `pgboxdb ttl <branch> 4h` extends by hand;
+`pgboxdb ttl <branch> unlimited` keeps one forever (then it is the user's).

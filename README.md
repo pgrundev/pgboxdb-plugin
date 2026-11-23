@@ -1,28 +1,34 @@
-# PGX — Postgres for Agents
+# PGBoxDB — Postgres for Agents
 
 One plugin. Every Claude Code agent gets its own Postgres.
 
-PGX is a local, PostgreSQL-compatible runtime built for disposable databases:
+PGBoxDB is a local, PostgreSQL-compatible runtime built for disposable databases:
 copy-on-write branches created in milliseconds and removed automatically when
-their time-to-live runs out. This plugin ships the `pgx` Agent Skill, which
+their time-to-live runs out. This plugin ships the `pgboxdb` Agent Skill, which
 gives each Claude Code session, and each of its subagents, its own branch of
 your project's database, so parallel agents, migrations and test runs never
 touch your real PostgreSQL and never overwrite one another.
 
-The plugin contains instructions and integration logic only. The PGX database
-runtime (the `pgx` binary, **PGX 0.1.2 or newer**) is installed separately,
-and a project still needs a one-time `pgx agent setup` before its sessions
+The plugin contains instructions and integration logic only. The PGBoxDB database
+runtime (the `pgboxdb` binary, **PGBoxDB 0.2.0 or newer**) is installed separately,
+and a project still needs a one-time `pgboxdb agent setup` before its sessions
 are isolated. Both steps are walked through by the skill the first time you
 use it in a project.
 
+In a repository that uses [PGBoxDB Git](https://github.com/pgrundev/pgboxdb/blob/main/docs/pgboxdb/local-dev/git.md)
+(`pgboxdb git init`: one database per Git branch and worktree), each session's
+branch is cloned from the database of the Git branch it works on, and a
+session that switches Git branches is moved to a branch of the new one
+automatically.
+
 ## Install inside Claude Code
 
-The lightweight plugin repository, `pgrundev/pgx-plugin`, holds only this
+The lightweight plugin repository, `pgrundev/pgboxdb-plugin`, holds only this
 plugin (about 100 KB) and is the fastest way to install:
 
 ```text
-/plugin marketplace add pgrundev/pgx-plugin
-/plugin install pgx@pgx-plugin
+/plugin marketplace add pgrundev/pgboxdb-plugin
+/plugin install pgboxdb@pgboxdb-plugin
 ```
 
 Pick the scope in the dialog: **user** makes the skill available in every
@@ -30,23 +36,23 @@ project on this machine, **project** or **local** limit it to one repository.
 From a shell, one command does both steps:
 
 ```sh
-claude plugin install pgx --marketplace pgrundev/pgx-plugin
+claude plugin install pgboxdb --marketplace pgrundev/pgboxdb-plugin
 ```
 
-The same plugin is also published from the main PGX repository, which Claude
+The same plugin is also published from the main PGBoxDB repository, which Claude
 Code clones in full (about 2 GB) to read its catalog:
 
 ```text
-/plugin marketplace add pgrundev/pgx
-/plugin install pgx@pgrundev
+/plugin marketplace add pgrundev/pgboxdb
+/plugin install pgboxdb@pgrundev
 ```
 
-Install from one marketplace only: `pgx@pgx-plugin` and `pgx@pgrundev` are the
-same plugin and both load the skill as `/pgx:pgx`. For Cursor and Codex, or to
+Install from one marketplace only: `pgboxdb@pgboxdb-plugin` and `pgboxdb@pgrundev` are the
+same plugin and both load the skill as `/pgboxdb:pgboxdb`. For Cursor and Codex, or to
 keep the skill as plain files in the project, use the Agent Skills CLI:
-`npx skills add pgrundev/pgx --skill pgx`.
+`npx skills add pgrundev/pgboxdb --skill pgboxdb`.
 
-PGX is not yet listed in Anthropic's plugin directory. Once a listing is
+PGBoxDB is not yet listed in Anthropic's plugin directory. Once a listing is
 approved, the plugin will also appear under **Discover** in `/plugin`.
 
 ## Use it
@@ -54,17 +60,16 @@ approved, the plugin will also appear under **Discover** in `/plugin`.
 Invoke the skill explicitly:
 
 ```text
-/pgx:pgx Set up isolated Postgres databases for this project.
+/pgboxdb:pgboxdb Set up isolated Postgres databases for this project.
 ```
 
 or just describe database work ("run the pending migrations and the tests",
 "set up Postgres for my agents"); Claude selects the skill when it is relevant.
 
 The first activation in a project walks through detection of the existing
-database setup, a check for the PGX runtime (offering `npm i -g pgxdb@0.1.2`
-if it is missing, or telling you how to run the official installer yourself),
-a schema-only template copied from your
-existing PostgreSQL or a fresh PGX database, and a one-time `pgx agent setup`.
+database setup, a check for the PGBoxDB runtime (offering `npm i -g pgboxdb` or the
+official installer if it is missing), a schema-only template copied from your
+existing PostgreSQL or a fresh PGBoxDB database, and a one-time `pgboxdb agent setup`.
 From then on every new Claude Code session in that project starts with
 `DATABASE_URL` pointing at its own branch, and every subagent that session
 launches gets a branch of its own, with its shell commands routed to it
@@ -72,60 +77,51 @@ automatically. Nothing in the plugin needs to be configured by hand.
 
 ## What it contains, and what it does not
 
-- The skill (`skills/pgx/SKILL.md`), its reference documents and two helper
+- The skill (`skills/pgboxdb/SKILL.md`), its reference documents and two helper
   scripts: `detect-project.sh` (reads the project's database configuration,
-  never printing credentials) and `check-pgx.sh` (checks the installed PGX
+  never printing credentials) and `check-pgboxdb.sh` (checks the installed PGBoxDB
   version). About 190 tokens of context while installed.
 - No hooks, MCP servers, binaries or background processes. Lifecycle hooks
-  are installed per project, and only on request, by `pgx agent setup`;
+  are installed per project, and only on request, by `pgboxdb agent setup`;
   installing or removing this plugin never changes a project's hooks or
   settings.
-- No database engine. The `pgx` binary is installed separately when the
+- No database engine. The `pgboxdb` binary is installed separately when the
   skill first needs it. The skill asks before downloading anything.
 
-## What runs on your machine, and what it reads
+## What runs on your machine
 
-Everything is local. The skill runs the `pgx` CLI against the PGX runtime on
-`127.0.0.1`; it does not call any network service of its own. The only
-downloads are the ones you approve: `npm i -g pgxdb@0.1.2` (pinned) when
-the runtime is missing, or the official installer that you run yourself.
-
-To find your project's database, `detect-project.sh` reads `DATABASE_URL`
-from the environment and from `.env`, `.env.local`, `.env.development` and
-`.env.test` if they exist, and prints only the host, port and database name
-(never the password or the URL). When you ask for a template of that
-database, the connection string is passed from your environment or file
-straight to `pgx copy` on this machine, which runs `pg_dump --schema-only`
-against it; it is never printed into the conversation and never sent
-anywhere else. Its data is copied only when you explicitly approve it.
-Credentials for agent branches are generated by PGX and exported into the
-session's environment by the hooks that `pgx agent setup` installs. Branches expire on their own (idle TTL, then a
-short grace period after the session ends) and the PGX supervisor removes
-them. Removing the plugin (`/plugin uninstall pgx@pgx-plugin`) removes the
-skill only; databases, templates, `.pgx.toml` and the PGX runtime stay, and
-`pgx agent uninstall` removes a project's hooks when you want that. The full
-rules are in `skills/pgx/references/security.md`.
+Everything is local. The skill runs the `pgboxdb` CLI against the PGBoxDB runtime on
+`127.0.0.1`; it does not call any network service of its own. Database
+credentials for agent branches are generated by PGBoxDB, exported into the
+session's environment by the hooks that `pgboxdb agent setup` installs, and never
+written into the conversation; your existing PostgreSQL is read with
+`pg_dump --schema-only` to build a template, and its data is copied only when
+you explicitly approve it. Branches expire on their own (idle TTL, then a
+short grace period after the session ends) and the PGBoxDB supervisor removes
+them. Removing the plugin (`/plugin uninstall pgboxdb@pgboxdb-plugin`) removes the
+skill only; databases, templates, `.pgboxdb.toml` and the PGBoxDB runtime stay, and
+`pgboxdb agent uninstall` removes a project's hooks when you want that. The full
+rules are in `skills/pgboxdb/references/security.md`.
 
 ## Updates
 
-The plugin's `version` follows the PGX Skill release. `claude plugin update
-pgx@pgx-plugin` (or **Update now** in `/plugin`) fetches a new version; an
+The plugin's `version` follows the PGBoxDB Skill release. `claude plugin update
+pgboxdb@pgboxdb-plugin` (or **Update now** in `/plugin`) fetches a new version; an
 older copy keeps working until then. The plugin's source lives in
-[pgrundev/pgx](https://github.com/pgrundev/pgx) (`skills/pgx`, packaged in
-`plugins/pgx`); the `pgrundev/pgx-plugin` repository is generated from it by
+[pgrundev/pgboxdb](https://github.com/pgrundev/pgboxdb) (`skills/pgboxdb`, packaged in
+`plugins/pgboxdb`); the `pgrundev/pgboxdb-plugin` repository is generated from it by
 CI on every change to `main`, and a daily check there fails if the two ever
-differ. Report issues and send changes to pgrundev/pgx.
+differ. Report issues and send changes to pgrundev/pgboxdb.
 
 ## Troubleshooting
 
-- `/pgx:pgx` is not offered: `claude plugin list` should show the plugin
+- `/pgboxdb:pgboxdb` is not offered: `claude plugin list` should show the plugin
   enabled; restart the session after installing.
-- "PGX not found" or "too old": install or upgrade the runtime
-  (`npm i -g pgxdb@0.1.2`, or run the installer from https://pgx.dev/install
-  in your own shell), then run the skill again. It needs 0.1.2 or newer for
-  subagent isolation.
+- "PGBoxDB not found" or "too old": install or upgrade the runtime
+  (`npm i -g pgboxdb@latest` or `curl -fsSL https://pgboxdb.com/install | sh`), then
+  run the skill again. It needs 0.1.2 or newer for subagent isolation.
 - A session's `DATABASE_URL` still points at your real database: the project
-  has not run `pgx agent setup` yet, or the session started before it did.
-  `pgx agent doctor` reports the project's state.
-- More: `skills/pgx/references/troubleshooting.md` and
-  https://github.com/pgrundev/pgx/blob/main/docs/pgx/local-dev/agents.md
+  has not run `pgboxdb agent setup` yet, or the session started before it did.
+  `pgboxdb agent doctor` reports the project's state.
+- More: `skills/pgboxdb/references/troubleshooting.md` and
+  https://github.com/pgrundev/pgboxdb/blob/main/docs/pgboxdb/local-dev/agents.md

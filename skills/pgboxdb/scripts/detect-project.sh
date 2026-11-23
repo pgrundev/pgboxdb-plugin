@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # detect-project.sh [dir]: classify a project's framework and database setup
-# for the pgx Skill. Prints exactly one JSON object on stdout. Reads only the
+# for the pgboxdb Skill. Prints exactly one JSON object on stdout. Reads only the
 # files it names; never prints a password, a credentialed URL or file contents.
 set -u
 dir=${1:-.}
@@ -77,17 +77,18 @@ if [ -n "$host$db" ] || [ -n "$files" ]; then
   fi
 fi
 
-# --- pgx ---------------------------------------------------------------------
-pgx_installed=false; pgx_version=null; pgx_port=""
-if command -v pgx >/dev/null 2>&1; then
-  pgx_installed=true
-  v=$(pgx --json version 2>/dev/null | sed -nE 's/.*"pgx_version":"([^"]+)".*/\1/p'); [ -n "$v" ] && pgx_version="\"$(esc "$v")\""
-  pgx_port=$(pgx --json status 2>/dev/null | sed -nE 's/.*"port":([0-9]+).*/\1/p')
+# --- pgboxdb ---------------------------------------------------------------------
+pgboxdb_installed=false; pgboxdb_version=null; pgboxdb_port=""
+if command -v pgboxdb >/dev/null 2>&1; then
+  pgboxdb_installed=true
+  v=$(pgboxdb --json version 2>/dev/null | sed -nE 's/.*"pgboxdb_version":"([^"]+)".*/\1/p'); [ -n "$v" ] && pgboxdb_version="\"$(esc "$v")\""
+  pgboxdb_port=$(pgboxdb --json status 2>/dev/null | sed -nE 's/.*"port":([0-9]+).*/\1/p')
 fi
-if [ "$classification" = local ] && [ -n "$pgx_port" ] && [ "$port" = "$pgx_port" ]; then classification=pgx; fi
-toml=false; d=$PWD; while [ "$d" != / ]; do [ -f "$d/.pgx.toml" ] && { toml=true; break; }; d=$(dirname "$d"); done
-hook() { [ -f "$1" ] && grep -q 'pgx agent hook' "$1" 2>/dev/null && echo true || echo false; }
+if [ "$classification" = local ] && [ -n "$pgboxdb_port" ] && [ "$port" = "$pgboxdb_port" ]; then classification=pgboxdb; fi
+toml=false; git_toml=false; d=$PWD; while [ "$d" != / ]; do [ -f "$d/.pgboxdb.toml" ] && { toml=true; grep -qE '^[[:space:]]*\[git\][[:space:]]*(#.*)?$' "$d/.pgboxdb.toml" && git_toml=true; break; }; d=$(dirname "$d"); done
+git_repo=false; command -v git >/dev/null 2>&1 && git rev-parse --show-toplevel >/dev/null 2>&1 && git_repo=true
+hook() { [ -f "$1" ] && grep -q 'pgboxdb agent hook' "$1" 2>/dev/null && echo true || echo false; }
 
-printf '{"framework":"%s","signals":[%s],"database_config":{"files":[%s],"url_sources":[%s],"classification":"%s","host":"%s","port":"%s","db":"%s"},"migrations":"%s","pgx":{"installed":%s,"version":%s,"toml":%s,"hooks":{"claude":%s,"cursor":%s,"codex":%s}}}\n' \
+printf '{"framework":"%s","signals":[%s],"database_config":{"files":[%s],"url_sources":[%s],"classification":"%s","host":"%s","port":"%s","db":"%s"},"migrations":"%s","pgboxdb":{"installed":%s,"version":%s,"toml":%s,"hooks":{"claude":%s,"cursor":%s,"codex":%s}},"git":{"repository":%s,"pgboxdb_git":%s}}\n' \
   "$framework" "${signals%,}" "${files%,}" "${url_sources%,}" "$classification" "$(esc "$host")" "$(esc "$port")" "$(esc "$db")" "$migrations" \
-  "$pgx_installed" "$pgx_version" "$toml" "$(hook .claude/settings.json)" "$(hook .cursor/hooks.json)" "$(hook .codex/hooks.json)"
+  "$pgboxdb_installed" "$pgboxdb_version" "$toml" "$(hook .claude/settings.json)" "$(hook .cursor/hooks.json)" "$(hook .codex/hooks.json)" "$git_repo" "$git_toml"
